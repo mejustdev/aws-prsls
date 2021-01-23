@@ -12,6 +12,8 @@
   "license": "ISC",
   "devDependencies": {
     "aws-sdk": "^2.831.0",
-    "serverless": "^2.20.1"
+    "dotenv": "^8.2.0",
+    "serverless": "^2.20.1",
+    "serverless-export-env": "^1.4.0"
   }
 }
