@@ -25,6 +25,7 @@ functions:
           method: get
     environment:
       # restaurants_api: https://#{ApiGatewayRestApi}.execute-api.#{AWS::Region}.amazonaws.com/${self:provider.stage}/restaurants
+      # Why changed -> Ok, so the serverless-export-env plugin does 90% of the work and gives us the environment variables we need, but it falls down when it comes to the restaurants_api environment variable because it doesn't work with the serverless-pseudo-parameters.
       restaurants_api:
         Fn::Join:
           - ""
