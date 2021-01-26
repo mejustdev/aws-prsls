@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "sls": "serverless"
+    "sls": "serverless",
+    "dotEnv": "sls export-env",
+    "test": "npm run dotEnv && jest"
   },
   "keywords": [],
   "author": "",
