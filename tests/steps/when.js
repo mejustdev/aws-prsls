@@ -1,3 +1,7 @@
+const mode = process.env.TEST_MODE;
+const aws4 = require('aws4');
+const URL = require('url');
+const http = require('axios');
 const APP_ROOT = '../../';
 const _ = require('lodash');
 
@@ -13,7 +17,16 @@ const viaHandler = async (event, functionName) => {
   return response;
 };
 
-const we_invoke_get_index = () => viaHandler({}, 'get-index');
+const we_invoke_get_index = async () => {
+  switch (mode) {
+    case 'handler':
+      return await viaHandler({}, 'get-index');
+    case 'http':
+      return await viaHttp('', 'GET');
+    default:
+      throw new Error(`unsupported mode: ${mode}`);
+  }
+};
 const we_invoke_get_restaurants = () => viaHandler({}, 'get-restaurants');
 const we_invoke_search_restaurants = (theme) => {
   let event = {
