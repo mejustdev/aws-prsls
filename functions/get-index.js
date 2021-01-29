@@ -49,6 +49,5 @@ module.exports.handler = async (event, context) => {
     },
     body: html,
   };
-
   return response;
 };
