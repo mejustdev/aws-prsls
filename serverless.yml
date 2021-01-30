@@ -75,6 +75,7 @@ resources:
         KeySchema:
           - AttributeName: name
             KeyType: HASH
+
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
@@ -110,6 +111,7 @@ resources:
             Required: true
             StringAttributeConstraints:
               MinLength: "1" 
+              
     WebCognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -119,6 +121,7 @@ resources:
           - ALLOW_USER_SRP_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
         PreventUserExistenceErrors: ENABLED 
+
     ServerCognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -128,6 +131,18 @@ resources:
           - ALLOW_ADMIN_USER_PASSWORD_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
         PreventUserExistenceErrors: ENABLED
+
+    ServiceUrlParameter:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Type: String
+        Name: /${self:service}/${self:provider.stage}/serviceUrl
+        Value:
+          Fn::Join:
+            - ""
+            - - https://
+              - !Ref ApiGatewayRestApi
+              - .execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}
   Outputs:
     RestApiUrl:
       Value: 
