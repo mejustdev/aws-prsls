@@ -147,6 +147,12 @@ resources:
             - - https://
               - !Ref ApiGatewayRestApi
               - .execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}
+
+    EventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: order_events_${self:provider.stage}
+
   Outputs:
     RestApiUrl:
       Value: 
@@ -164,7 +170,10 @@ resources:
     CognitoUserPoolWebClientId:
       Value: !Ref WebCognitoUserPoolClient
     CognitoUserPoolServerClientId:
-      Value: !Ref ServerCognitoUserPoolClient        
+      Value: !Ref ServerCognitoUserPoolClient    
+    EventBusName:
+      Value: !Ref EventBus    
+    
 plugins:
   - serverless-export-env
   - serverless-pseudo-parameters
