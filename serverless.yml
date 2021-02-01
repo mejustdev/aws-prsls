@@ -27,6 +27,9 @@ provider:
     - Effect: Allow
       Action: kms:Decrypt
       Resource: ${ssm:/dev/kmsArn}
+    - Effect: Allow
+      Action: events:PutEvents
+      Resource: "*"
 
 functions:
   get-index:
@@ -67,6 +70,18 @@ functions:
               arn: !GetAtt CognitoUserPool.Arn
     environment:
       restaurants_table: !Ref RestaurantsTable
+  place-order:
+    handler: functions/place-order.handler
+    events:
+      - http:
+          path: /orders
+          method: post
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
+    environment:
+      bus_name: !Ref EventBus
 resources:
   Resources:
     RestaurantsTable:
