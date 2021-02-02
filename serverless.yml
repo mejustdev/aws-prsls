@@ -30,7 +30,9 @@ provider:
     - Effect: Allow
       Action: events:PutEvents
       Resource: "*"
-
+    - Effect: Allow
+      Action: sns:Publish
+      Resource: !Ref RestaurantNotificationTopic
 functions:
   get-index:
     handler: functions/get-index.handler
@@ -88,6 +90,19 @@ functions:
             arn: !GetAtt CognitoUserPool.Arn
     environment:
       bus_name: !Ref EventBus
+  notify-restaurant:
+    handler: functions/notify-restaurant.handler
+    events:
+      - eventBridge:
+          eventBus: arn:aws:events:#{AWS::Region}:#{AWS::AccountId}:event-bus/order_events_${self:provider.stage}
+          pattern:
+            source:
+              - big-mouth
+            detail-type:
+              - order_placed
+    environment:
+      bus_name: !Ref EventBus
+      restaurant_notification_topic: !Ref RestaurantNotificationTopic
 resources:
   Resources:
     RestaurantsTable:
@@ -173,6 +188,9 @@ resources:
       Type: AWS::Events::EventBus
       Properties:
         Name: order_events_${self:provider.stage}
+    
+    RestaurantNotificationTopic:
+      Type: AWS::SNS::Topic
 
   Outputs:
     RestApiUrl:
@@ -193,7 +211,11 @@ resources:
     CognitoUserPoolServerClientId:
       Value: !Ref ServerCognitoUserPoolClient    
     EventBusName:
-      Value: !Ref EventBus    
+      Value: !Ref EventBus   
+    RestaurantNotificationTopicName:
+      Value: !GetAtt RestaurantNotificationTopic.TopicName
+    RestaurantNotificationTopicArn:
+      Value: !Ref RestaurantNotificationTopic 
     
 plugins:
   - serverless-export-env
