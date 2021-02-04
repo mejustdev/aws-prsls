@@ -1,3 +1,5 @@
+const EventBridge = require('aws-sdk/clients/eventbridge');
+
 const mode = process.env.TEST_MODE;
 const aws4 = require('aws4');
 const URL = require('url');
@@ -71,6 +73,22 @@ const viaHttp = async (relPath, method, opts) => {
   }
 };
 
+const viaEventBridge = async (busName, source, detailType, detail) => {
+  const eventBridge = new EventBridge();
+  await eventBridge
+    .putEvents({
+      Entries: [
+        {
+          Source: source,
+          DetailType: detailType,
+          Detail: JSON.stringify(detail),
+          EventBusName: busName,
+        },
+      ],
+    })
+    .promise();
+};
+
 const we_invoke_get_index = async () => {
   switch (mode) {
     case 'handler':
@@ -125,7 +143,8 @@ const we_invoke_notify_restaurant = async (event) => {
   if (mode === 'handler') {
     await viaHandler(event, 'notify-restaurant');
   } else {
-    throw new Error('not supported');
+    const busName = process.env.EVENT_BUS_NAME;
+    await viaEventBridge(busName, event.source, event['detail-type'], event.detail);
   }
 };
 
