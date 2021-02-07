@@ -40,6 +40,12 @@ const startListening = () => {
           source: body.TopicArn,
           message: body.Message,
         });
+      } else if (body.eventBusName) {
+        messages.next({
+          sourceType: 'eventbridge',
+          source: body.eventBusName,
+          message: JSON.stringify(body.event),
+        });
       }
     });
 
