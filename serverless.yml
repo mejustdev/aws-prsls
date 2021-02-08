@@ -3,7 +3,7 @@ service: workshop-${self:custom.name}
 custom:
   name: mehmet
   email: mergorgec@gmail.com
-  stage: ${opt:stage, self:custom.stage}
+  stage: ${opt:stage, self:provider.stage}
   logLevel:
     prod: INFO
     default: DEBUG
@@ -16,17 +16,14 @@ provider:
     stage: ${self:custom.stage}
     LOG_LEVEL: ${self:custom.logLevel.${self:custom.stage}, self:custom.logLevel.default}
 
-  
 functions:
   get-index:
     handler: functions/get-index.handler
     events:
       - http:
           path: /
-          method: get
+          method: get          
     environment:
-      # restaurants_api: https://#{ApiGatewayRestApi}.execute-api.#{AWS::Region}.amazonaws.com/${self:custom.stage}/restaurants
-      # Why changed -> Ok, so the serverless-export-env plugin does 90% of the work and gives us the environment variables we need, but it falls down when it comes to the restaurants_api environment variable because it doesn't work with the serverless-pseudo-parameters.
       restaurants_api:
         Fn::Join:
           - ""
@@ -45,6 +42,7 @@ functions:
       - Effect: Allow
         Action: execute-api:Invoke
         Resource: arn:aws:execute-api:#{AWS::Region}:#{AWS::AccountId}:#{ApiGatewayRestApi}/${self:custom.stage}/GET/restaurants
+
   get-restaurants:
     handler: functions/get-restaurants.handler
     events:
@@ -55,12 +53,13 @@ functions:
     environment:
       restaurants_table: !Ref RestaurantsTable
     iamRoleStatements:
-    - Effect: Allow
-      Action: dynamodb:scan
-      Resource: !GetAtt RestaurantsTable.Arn
-    - Effect: Allow
-      Action: ssm:GetParameters*
-      Resource: arn:aws:ssm:#{AWS::Region}:#{AWS::AccountId}:parameter/${self:service}/${self:custom.stage}/get-restaurants/config
+      - Effect: Allow
+        Action: dynamodb:scan
+        Resource: !GetAtt RestaurantsTable.Arn
+      - Effect: Allow
+        Action: ssm:GetParameters*
+        Resource: arn:aws:ssm:#{AWS::Region}:#{AWS::AccountId}:parameter/${self:service}/${self:custom.stage}/get-restaurants/config
+
   search-restaurants:
     handler: functions/search-restaurants.handler
     events:
@@ -68,9 +67,9 @@ functions:
           path: /restaurants/search
           method: post
           authorizer:
-              name: CognitoAuthorizer
-              type: COGNITO_USER_POOLS
-              arn: !GetAtt CognitoUserPool.Arn
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt CognitoUserPool.Arn
     environment:
       restaurants_table: !Ref RestaurantsTable
     iamRoleStatements:
@@ -85,6 +84,7 @@ functions:
       - Effect: Allow
         Action: kms:Decrypt
         Resource: ${ssm:/dev/kmsArn}
+
   place-order:
     handler: functions/place-order.handler
     events:
@@ -101,6 +101,7 @@ functions:
       - Effect: Allow
         Action: events:PutEvents
         Resource: "*"
+
   notify-restaurant:
     handler: functions/notify-restaurant.handler
     events:
@@ -121,7 +122,14 @@ functions:
       - Effect: Allow
         Action: sns:Publish
         Resource: !Ref RestaurantNotificationTopic
+
 resources:
+  Conditions:
+    IsE2eTest:
+      Fn::Equals:
+        - ${self:custom.stage}
+        - dev
+
   Resources:
     RestaurantsTable:
       Type: AWS::DynamoDB::Table
@@ -133,31 +141,6 @@ resources:
         KeySchema:
           - AttributeName: name
             KeyType: HASH
-    E2eTestEventBridgeRule:
-      Type: AWS::Events::Rule
-      Condition: IsE2eTest
-      Properties:
-        EventBusName: !Ref EventBus
-        EventPattern:
-          source: ["big-mouth"]
-        State: ENABLED
-        Targets:
-          - Arn: !GetAtt E2eTestQueue.Arn
-            Id: e2eTestQueue
-            InputTransformer:
-              InputPathsMap:
-                source: "$.source"
-                detailType: "$.detail-type"
-                detail: "$.detail"
-              InputTemplate: >
-                {
-                  "event": {
-                    "source": <source>,
-                    "detail-type": <detailType>,
-                    "detail": <detail>
-                  },
-                  "eventBusName": "#{EventBus}"
-                }
 
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
@@ -193,8 +176,8 @@ resources:
             Name: email
             Required: true
             StringAttributeConstraints:
-              MinLength: "1" 
-              
+              MinLength: "1"
+        
     WebCognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
@@ -203,7 +186,7 @@ resources:
         ExplicitAuthFlows:
           - ALLOW_USER_SRP_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
-        PreventUserExistenceErrors: ENABLED 
+        PreventUserExistenceErrors: ENABLED
 
     ServerCognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
@@ -231,7 +214,7 @@ resources:
       Type: AWS::Events::EventBus
       Properties:
         Name: order_events_${self:custom.stage}
-    
+
     RestaurantNotificationTopic:
       Type: AWS::SNS::Topic
 
@@ -241,6 +224,7 @@ resources:
       Properties:
         MessageRetentionPeriod: 60
         VisibilityTimeout: 1
+
     E2eTestQueuePolicy:
       Type: AWS::SQS::QueuePolicy
       Condition: IsE2eTest
@@ -264,6 +248,7 @@ resources:
               Condition:
                 ArnEquals:
                   aws:SourceArn: !GetAtt E2eTestEventBridgeRule.Arn
+
     E2eTestSnsSubscription:
       Type: AWS::SNS::Subscription
       Condition: IsE2eTest
@@ -273,13 +258,62 @@ resources:
         RawMessageDelivery: false
         Region: "#{AWS::Region}"
         TopicArn: !Ref RestaurantNotificationTopic
-  Conditions:
-    IsE2eTest:
-      Fn::Equals:
-        - ${self:custom.stage}
-        - dev
+
+    E2eTestEventBridgeRule:
+      Type: AWS::Events::Rule
+      Condition: IsE2eTest
+      Properties:
+        EventBusName: !Ref EventBus
+        EventPattern:
+          source: ["big-mouth"]
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt E2eTestQueue.Arn
+            Id: e2eTestQueue
+            InputTransformer:
+              InputPathsMap:
+                source: "$.source"
+                detailType: "$.detail-type"
+                detail: "$.detail"
+              InputTemplate: >
+                {
+                  "event": {
+                    "source": <source>,
+                    "detail-type": <detailType>,
+                    "detail": <detail>
+                  },
+                  "eventBusName": "#{EventBus}"
+                }
 
   Outputs:
+    RestaurantsTableName:
+      Value: !Ref RestaurantsTable
+
+    CognitoUserPoolId:
+      Value: !Ref CognitoUserPool
+
+    CognitoUserPoolArn:
+      Value: !GetAtt CognitoUserPool.Arn
+
+    CognitoUserPoolWebClientId:
+      Value: !Ref WebCognitoUserPoolClient
+
+    CognitoUserPoolServerClientId:
+      Value: !Ref ServerCognitoUserPoolClient
+
+    EventBusName:
+      Value: !Ref EventBus
+
+    RestaurantNotificationTopicName:
+      Value: !GetAtt RestaurantNotificationTopic.TopicName
+
+    RestaurantNotificationTopicArn:
+      Value: !Ref RestaurantNotificationTopic
+
+    E2eTestQueueUrl:
+      Condition: IsE2eTest
+      Value: !Ref E2eTestQueue
+
     RestApiUrl:
       Value: 
         Fn::Join:
@@ -287,26 +321,7 @@ resources:
           - - https://
             - !Ref ApiGatewayRestApi
             - .execute-api.${self:provider.region}.amazonaws.com/${self:custom.stage}
-    RestaurantsTableName:
-      Value: !Ref RestaurantsTable
-    CognitoUserPoolId:
-      Value: !Ref CognitoUserPool
-    CognitoUserPoolArn:
-      Value: !GetAtt CognitoUserPool.Arn
-    CognitoUserPoolWebClientId:
-      Value: !Ref WebCognitoUserPoolClient
-    CognitoUserPoolServerClientId:
-      Value: !Ref ServerCognitoUserPoolClient    
-    EventBusName:
-      Value: !Ref EventBus   
-    RestaurantNotificationTopicName:
-      Value: !GetAtt RestaurantNotificationTopic.TopicName
-    RestaurantNotificationTopicArn:
-      Value: !Ref RestaurantNotificationTopic
-    E2eTestQueueUrl:
-      Condition: IsE2eTest
-      Value: !Ref E2eTestQueue
-    
+
 plugins:
   - serverless-export-env
   - serverless-pseudo-parameters
