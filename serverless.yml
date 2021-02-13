@@ -5,8 +5,8 @@ custom:
   email: mergorgec@gmail.com
   stage: ${opt:stage, self:provider.stage}
   logLevel:
-    prod: INFO
-    default: DEBUG
+    prod: ERROR
+    default: INFO
 
 provider:
   name: aws
@@ -15,6 +15,7 @@ provider:
     serviceName: ${self:service}
     stage: ${self:custom.stage}
     LOG_LEVEL: ${self:custom.logLevel.${self:custom.stage}, self:custom.logLevel.default}
+    SAMPLE_DEBUG_LOG_RATE: 0.1
 
 functions:
   get-index:
